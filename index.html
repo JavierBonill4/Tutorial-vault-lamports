@@ -829,24 +829,6 @@ cargo test</code></pre>
         </p>
       </div>
 
-      <p>Serialized both ways, so you can see exactly what happens:</p>
-
-<pre><code><span class="c-com">// max_withdraw AFTER the bumps — existing tests keep passing</span>
-{ vault_bump: <span class="c-num">254</span>, bump: <span class="c-num">253</span>, max_withdraw: <span class="c-num">5</span> }
-  -&gt; [<span class="c-str">254</span>, <span class="c-str">253</span>, 5, 0, 0, 0, 0, 0, 0, 0]
-     data[8]=<span class="c-str">254</span>  data[9]=<span class="c-str">253</span>   <span class="c-com">// what the test expects</span>
-
-<span class="c-com">// max_withdraw BEFORE the bumps — three tests break, confusingly</span>
-{ max_withdraw: <span class="c-num">5</span>, vault_bump: <span class="c-num">254</span>, bump: <span class="c-num">253</span> }
-  -&gt; [5, 0, 0, 0, 0, 0, 0, 0, <span class="c-str">254</span>, <span class="c-str">253</span>]
-     data[8]=5    data[9]=0     <span class="c-com">// "vault_bump mismatch" — nowhere near the real cause</span></code></pre>
-
-      <p>
-        Field order in an account struct is part of its wire format. Anything reading the
-        account by offset — another program, an indexer, a test — breaks when you reorder,
-        and it breaks quietly. Appending is almost always the safe move.
-      </p>
-
       <label class="done-row"><input type="checkbox" data-cp="2" /> Mark checkpoint 2 complete</label>
     </section>
 
