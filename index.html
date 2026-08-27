@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="Add a per-transaction withdrawal limit to the Solana Summer lamports vault. Nine checkpoints, hints, solutions, and the fork-and-PR workflow." />
+<meta name="description" content="Add a per-transaction withdrawal limit to the Solana Summer lamports vault. Nine checkpoints, hints, gated solutions, and the fork-and-PR workflow." />
 <title>Vault Withdrawal Limit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -512,6 +512,37 @@ summary:hover { background: var(--surface-sunk); }
 .d-body > * + * { margin-top: .85rem; }
 .d-body p, .d-body ul, .d-body ol { font-size: .96rem; }
 
+/* Gated solutions -------------------------------------------------- */
+.sol-gate.is-locked > summary { color: var(--dim); }
+.sol-gate.is-locked > summary .tag.sol {
+  background: var(--surface-sunk);
+  color: var(--dim);
+  border-color: var(--line);
+}
+.sol-gate.is-locked > summary::after { content: "\1F512"; font-family: inherit; font-size: .9rem; }
+.sol-gate.is-locked[open] > summary::after { content: "\1F512"; }
+
+.gate {
+  border: 1px dashed var(--line-strong);
+  background: var(--surface-sunk);
+  border-radius: .65rem;
+  padding: .95rem 1.1rem;
+  font-size: .94rem;
+  color: var(--ink-soft);
+}
+.gate b {
+  display: block;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .69rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--purple-deep);
+  margin-bottom: .45rem;
+}
+.gate ul { padding-left: 1.1rem; margin-top: .55rem; gap: .3rem; display: flex; flex-direction: column; }
+.gate a { font-weight: 600; }
+
 /* Spec table ------------------------------------------------------- */
 .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: .75rem; background: var(--surface); }
 table { border-collapse: collapse; width: 100%; font-size: .9rem; }
@@ -561,7 +592,7 @@ td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular
 
 <header class="masthead">
   <div class="masthead-inner">
-    <p class="kicker">Solana Summer · Vault Challenge</p>
+    <p class="kicker">Solana Summer · Assignment 01 · Vault Challenge</p>
     <h1>Cap what a vault can <em>pay out</em> in one transaction.</h1>
     <p class="standfirst">
       The vault works. It has no limits. Add a per-transaction withdrawal ceiling —
@@ -630,13 +661,6 @@ td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular
         walks the repo so you can check your reading against it — try it yourself first.
       </div>
 
-      <h4>What is different from the last assignment</h4>
-      <div class="limits">
-        <div class="limit"><b>Anchor 1.0</b><span>Not 0.31. <code>CpiContext::new</code> takes a <code>Pubkey</code> here, not an <code>AccountInfo</code>.</span></div>
-        <div class="limit"><b>LiteSVM</b><span>Tests are Rust, run by <code>cargo test</code>. No ts-mocha, no TypeScript client.</span></div>
-        <div class="limit"><b>1.89.0</b><span>Rust is pinned by <code>rust-toolchain.toml</code>. Let rustup honor it.</span></div>
-        <div class="limit"><b>PR</b><span>You submit by opening a pull request against the upstream repo, not by pushing to it.</span></div>
-      </div>
     </section>
 
     <!-- ============ CP 0 ============ -->
@@ -1003,23 +1027,24 @@ cargo test</code></pre>
         <li><code>initialize_vault</code> (the convenience wrapper) takes it too and forwards it.</li>
       </ul>
 
-      <h4>Then eleven call sites</h4>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>File</th><th>Lines</th><th>Call</th></tr></thead>
-          <tbody>
-            <tr><td class="num">test_deposit.rs</td><td class="num">17, 48, 90, 107</td><td class="num">initialize_vault(&amp;mut svm, &amp;user)</td></tr>
-            <tr><td class="num">test_initialize.rs</td><td class="num">20, 49, 69, 71</td><td class="num">build_initialize_ix(&amp;pubkey)</td></tr>
-            <tr><td class="num">test_withdraw.rs</td><td class="num">18, 68, 109</td><td class="num">initialize_vault(&amp;mut svm, &amp;user)</td></tr>
-          </tbody>
-        </table>
-      </div>
-
       <p>
         For the tests that are not about the limit, pass something generous —
         <code>100 * ONE_SOL</code> — so the cap never interferes with what they were written to
         check. A deposit test failing because of a withdrawal ceiling would be a bad test.
       </p>
+
+      <details>
+        <summary><span class="tag">Hint</span> Where to fix tests</summary>
+        <div class="d-body">
+          <p>
+            Read and understand <code>build_initialize_ix</code> and <code>initialize_vault</code> in
+            tests/common/mod.rs - What must change in initialization now that we've added a max withdraw?
+            
+            Afterwards Look through test_deposit.rs, test_initialize.rs, and test_withdraw.rs for any test
+            that is calling the updated functions and fix according to your updates.
+          </p>
+        </div>
+      </details>
 
       <div class="note">
         <span class="note-label">This is the actual lesson of the checkpoint</span>
@@ -1228,9 +1253,11 @@ ones covering under, exactly at, and one lamport over the cap.</code></pre>
         read those messages.
       </p>
 
-      <details>
+      <details class="sol-gate" data-solves="2">
         <summary><span class="tag sol">Solution</span> Checkpoint 2 — state/vault_state.rs</summary>
         <div class="d-body">
+          <div class="gate-slot"></div>
+          <template class="sol-content">
 <pre><code><span class="c-attr">#[account]</span>
 <span class="c-attr">#[derive(InitSpace)]</span>
 <span class="c-key">pub struct</span> VaultState {
@@ -1238,12 +1265,15 @@ ones covering under, exactly at, and one lamport over the cap.</code></pre>
     <span class="c-key">pub</span> bump: <span class="c-key">u8</span>,           <span class="c-com">// The bump seed for the VaultState PDA itself</span>
     <span class="c-key">pub</span> max_withdraw: <span class="c-key">u64</span>,  <span class="c-com">// Per-transaction withdrawal cap, in lamports</span>
 }</code></pre>
+        </template>
         </div>
       </details>
 
-      <details>
+      <details class="sol-gate" data-solves="3">
         <summary><span class="tag sol">Solution</span> Checkpoint 3 — initialize.rs and lib.rs</summary>
         <div class="d-body">
+          <div class="gate-slot"></div>
+          <template class="sol-content">
 <pre><code><span class="c-com">// instructions/initialize.rs</span>
 <span class="c-key">pub fn</span> <span class="c-fn">initialize_vault</span>(ctx: Context&lt;Initialize&gt;, max_withdraw: <span class="c-key">u64</span>) -&gt; Result&lt;()&gt; {
     <span class="c-com">// ... unchanged rent transfer ...</span>
@@ -1260,12 +1290,15 @@ ones covering under, exactly at, and one lamport over the cap.</code></pre>
 <span class="c-key">pub fn</span> <span class="c-fn">initialize</span>(ctx: Context&lt;Initialize&gt;, max_withdraw: <span class="c-key">u64</span>) -&gt; Result&lt;()&gt; {
     initialize::<span class="c-fn">initialize_vault</span>(ctx, max_withdraw)
 }</code></pre>
+        </template>
         </div>
       </details>
 
-      <details>
+      <details class="sol-gate" data-solves="4">
         <summary><span class="tag sol">Solution</span> Checkpoint 4 — error.rs</summary>
         <div class="d-body">
+          <div class="gate-slot"></div>
+          <template class="sol-content">
 <pre><code><span class="c-attr">#[error_code]</span>
 <span class="c-key">pub enum</span> ErrorCode {
     <span class="c-attr">#[msg(<span class="c-str">"Custom error message"</span>)]</span>
@@ -1273,12 +1306,15 @@ ones covering under, exactly at, and one lamport over the cap.</code></pre>
     <span class="c-attr">#[msg(<span class="c-str">"Withdrawal amount exceeds the per-transaction limit"</span>)]</span>
     ExceedsMaxWithdraw,
 }</code></pre>
+        </template>
         </div>
       </details>
 
-      <details>
+      <details class="sol-gate" data-solves="5">
         <summary><span class="tag sol">Solution</span> Checkpoint 5 — withdraw.rs</summary>
         <div class="d-body">
+          <div class="gate-slot"></div>
+          <template class="sol-content">
 <pre><code><span class="c-key">use</span> crate::{error::ErrorCode, VAULT_SEED, VAULT_STATE_SEED, VaultState};
 
 <span class="c-key">pub fn</span> <span class="c-fn">withdraw_lamports</span>(ctx: Context&lt;Withdraw&gt;, amount: <span class="c-key">u64</span>) -&gt; Result&lt;()&gt; {
@@ -1291,12 +1327,15 @@ ones covering under, exactly at, and one lamport over the cap.</code></pre>
     <span class="c-com">// ... unchanged CPI transfer ...</span>
 }</code></pre>
           <p><code>&lt;=</code>, so a withdrawal of exactly the cap is allowed.</p>
+        </template>
         </div>
       </details>
 
-      <details>
+      <details class="sol-gate" data-solves="6">
         <summary><span class="tag sol">Solution</span> Checkpoint 6 — tests/common/mod.rs</summary>
         <div class="d-body">
+          <div class="gate-slot"></div>
+          <template class="sol-content">
 <pre><code><span class="c-key">pub fn</span> <span class="c-fn">build_initialize_ix</span>(payer: &amp;Pubkey, max_withdraw: <span class="c-key">u64</span>) -&gt; Instruction {
     <span class="c-key">let</span> (vault_state, _) = <span class="c-fn">vault_state_pda</span>(payer);
     <span class="c-key">let</span> (vault, _) = <span class="c-fn">vault_pda</span>(payer);
@@ -1319,12 +1358,15 @@ ones covering under, exactly at, and one lamport over the cap.</code></pre>
     <span class="c-fn">send</span>(svm, payer, &amp;[ix], &amp;[]).<span class="c-fn">expect</span>(<span class="c-str">"initialize should succeed"</span>);
 }</code></pre>
           <p>Then update the eleven call sites — pass <code>100 * ONE_SOL</code> in tests that are not about the cap.</p>
+        </template>
         </div>
       </details>
 
-      <details>
+      <details class="sol-gate" data-solves="7">
         <summary><span class="tag sol">Solution</span> Checkpoint 7 — the three tests</summary>
         <div class="d-body">
+          <div class="gate-slot"></div>
+          <template class="sol-content">
 <pre><code><span class="c-attr">#[test]</span>
 <span class="c-key">fn</span> <span class="c-fn">withdraw_under_the_limit_succeeds</span>() {
     <span class="c-key">let</span> <span class="c-key">mut</span> svm = <span class="c-fn">setup_svm</span>();
@@ -1371,6 +1413,7 @@ ones covering under, exactly at, and one lamport over the cap.</code></pre>
     <span class="c-key">let</span> res = <span class="c-fn">send</span>(&amp;<span class="c-key">mut</span> svm, &amp;user, &amp;[<span class="c-fn">build_withdraw_ix</span>(&amp;user.<span class="c-fn">pubkey</span>(), max + <span class="c-num">1</span>)], &amp;[]);
     <span class="c-fn">assert!</span>(res.<span class="c-fn">is_err</span>(), <span class="c-str">"one lamport over the limit must be rejected"</span>);
 }</code></pre>
+        </template>
         </div>
       </details>
     </section>
@@ -1513,6 +1556,72 @@ git push --force-with-lease</code></pre>
   var tally = document.getElementById("tally");
   var state = read();
 
+  // --- gated solutions -----------------------------------------------------
+  // A solution for checkpoint N unlocks once checkpoints 0..N-1 are all ticked.
+  // You are allowed to read the answer to the step you are stuck on; you are not
+  // allowed to skip ahead and read all of them.
+  var gates = Array.prototype.slice.call(document.querySelectorAll(".sol-gate"));
+
+  var CP_NAMES = {
+    0: "Fork & set up", 1: "Find the work", 2: "Add the field",
+    3: "Set it at init", 4: "A real error", 5: "Enforce the cap",
+    6: "Repair the harness", 7: "The three tests", 8: "Open the PR"
+  };
+
+  function missingFor(gate) {
+    var solves = Number(gate.dataset.solves);
+    var missing = [];
+    for (var i = 0; i < solves; i++) if (!state[i]) missing.push(i);
+    return missing;
+  }
+
+  function renderGate(gate) {
+    var missing = missingFor(gate);
+    var slot = gate.querySelector(".gate-slot");
+    var tpl = gate.querySelector("template.sol-content");
+    if (!slot) return;
+
+    if (missing.length === 0) {
+      gate.classList.remove("is-locked");
+      if (tpl && !gate.dataset.revealed) {
+        slot.appendChild(tpl.content.cloneNode(true));
+        gate.dataset.revealed = "1";
+      }
+      return;
+    }
+
+    gate.classList.add("is-locked");
+    if (gate.dataset.revealed) {           // re-locked after a box was unticked
+      slot.innerHTML = "";
+      delete gate.dataset.revealed;
+    }
+    gate.open = false;
+
+    var links = missing.map(function (i) {
+      return '<li><a href="#cp' + i + '">Checkpoint ' + i + ' — ' + CP_NAMES[i] + "</a></li>";
+    }).join("");
+
+    slot.innerHTML =
+      '<div class="gate"><b>Finish the earlier checkpoints first</b>' +
+      "Work through the steps before this one, tick them off, and this solution opens. " +
+      "Reading ahead is how you end up with code you cannot debug." +
+      "<ul>" + links + "</ul></div>";
+  }
+
+  function paintGates() { gates.forEach(renderGate); }
+
+  // Clicking a locked summary shows the notice instead of opening the block.
+  gates.forEach(function (gate) {
+    var summary = gate.querySelector("summary");
+    if (!summary) return;
+    summary.addEventListener("click", function (e) {
+      if (missingFor(gate).length === 0) return;
+      e.preventDefault();
+      renderGate(gate);
+      gate.open = true;                    // open it — the notice is what is inside
+    });
+  });
+
   function paint() {
     var done = 0;
     boxes.forEach(function (box) {
@@ -1523,6 +1632,7 @@ git push --force-with-lease</code></pre>
       if (on) done++;
     });
     if (tally) tally.textContent = done + " of " + TOTAL + " done";
+    paintGates();
   }
 
   boxes.forEach(function (box) {
