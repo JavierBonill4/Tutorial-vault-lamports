@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Add a per-transaction withdrawal limit to the Solana Summer lamports vault. Nine checkpoints, hints, solutions, and the fork-and-PR workflow." />
+<title>Vault Withdrawal Limit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500;700&display=swap" />
+</head>
+<body>
+<style>
+/* ============================================================
+   Tokens — complete light palette on bare :root
+   ============================================================ */
+:root {
+  --ground:       #FAF8FE;
+  --surface:      #FFFFFF;
+  --surface-sunk: #F4EFFD;
+  --line:         #E7DEF7;
+  --line-strong:  #D3C4F0;
+
+  --ink:          #251C36;
+  --ink-soft:     #4A3F60;
+  --dim:          #6E6285;
+
+  --purple:       #7C3AED;
+  --purple-deep:  #5B21B6;
+  --purple-wash:  #F1EBFE;
+
+  --green:        #059669;
+  --green-bright: #14F195;
+  --green-wash:   #E4FBF1;
+
+  --amber:        #B45309;
+  --amber-wash:   #FEF3E2;
+
+  --code-bg:      #241B33;
+  --code-ink:     #EDE6FA;
+  --code-dim:     #9C8DBB;
+
+  --shadow: 0 1px 2px rgba(37,28,54,.05), 0 8px 24px -12px rgba(91,33,182,.18);
+
+  --step--1: .8125rem;
+  --step-0:  1.0625rem;
+  --step-1:  1.35rem;
+  --step-2:  1.75rem;
+  --step-3:  2.4rem;
+  --step-4:  3.4rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:       #141021;
+    --surface:      #1C1630;
+    --surface-sunk: #241C3C;
+    --line:         #322748;
+    --line-strong:  #453563;
+
+    --ink:          #EFE9FA;
+    --ink-soft:     #CFC4E6;
+    --dim:          #A091BE;
+
+    --purple:       #A78BFA;
+    --purple-deep:  #C4B5FD;
+    --purple-wash:  #271D42;
+
+    --green:        #34D399;
+    --green-bright: #14F195;
+    --green-wash:   #10301F;
+
+    --amber:        #FBBF24;
+    --amber-wash:   #33240C;
+
+    --code-bg:      #0E0A19;
+    --code-ink:     #E6DFF5;
+    --code-dim:     #8879A8;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:       #141021;
+  --surface:      #1C1630;
+  --surface-sunk: #241C3C;
+  --line:         #322748;
+  --line-strong:  #453563;
+
+  --ink:          #EFE9FA;
+  --ink-soft:     #CFC4E6;
+  --dim:          #A091BE;
+
+  --purple:       #A78BFA;
+  --purple-deep:  #C4B5FD;
+  --purple-wash:  #271D42;
+
+  --green:        #34D399;
+  --green-bright: #14F195;
+  --green-wash:   #10301F;
+
+  --amber:        #FBBF24;
+  --amber-wash:   #33240C;
+
+  --code-bg:      #0E0A19;
+  --code-ink:     #E6DFF5;
+  --code-dim:     #8879A8;
+
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+body, h1, h2, h3, h4, p, ul, ol, li, figure, pre, dl, dd { margin: 0; padding: 0; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Source Serif 4", ui-serif, Georgia, serif;
+  font-size: var(--step-0);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .u-sans {
+  font-family: "Familjen Grotesk", ui-sans-serif, system-ui, sans-serif;
+  text-wrap: balance;
+  letter-spacing: -.015em;
+}
+
+code, kbd, pre, .u-mono {
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-ligatures: none;
+}
+
+a { color: var(--purple-deep); text-decoration-thickness: 1px; text-underline-offset: .17em; }
+a:hover { color: var(--purple); }
+
+:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ============================================================
+   Shell
+   ============================================================ */
+.shell {
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 6rem;
+  display: grid;
+  grid-template-columns: 16.5rem minmax(0, 1fr);
+  gap: 3.5rem;
+  align-items: start;
+}
+
+@media (max-width: 62rem) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .rail { display: none; }
+}
+
+/* ============================================================
+   Masthead
+   ============================================================ */
+.masthead {
+  border-bottom: 1px solid var(--line);
+  background:
+    radial-gradient(120% 140% at 12% -10%, var(--purple-wash) 0%, transparent 58%),
+    var(--ground);
+}
+.masthead-inner {
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: 3.5rem 1.5rem 2.75rem;
+}
+
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: var(--step--1);
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--purple-deep);
+  margin-bottom: 1.4rem;
+}
+.kicker::before {
+  content: "";
+  width: 2.25rem; height: 3px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--purple) 0%, var(--green-bright) 100%);
+}
+
+.masthead h1 {
+  font-size: var(--step-4);
+  font-weight: 700;
+  line-height: 1.02;
+  max-width: 18ch;
+  margin-bottom: 1.1rem;
+}
+.masthead h1 em {
+  font-style: normal;
+  color: var(--purple);
+}
+
+.standfirst {
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 54ch;
+  margin-bottom: 2rem;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 2.5rem;
+  row-gap: 1.1rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid var(--line);
+}
+.fact { display: flex; flex-direction: column; gap: .18rem; }
+.fact dt {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .72rem; font-weight: 500;
+  letter-spacing: .11em; text-transform: uppercase;
+  color: var(--dim);
+}
+.fact dd {
+  font-family: "Familjen Grotesk", ui-sans-serif, sans-serif;
+  font-size: 1.05rem; font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Rail — the progress spine
+   ============================================================ */
+.rail {
+  position: sticky;
+  top: 2rem;
+  padding-top: 3.5rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+.rail-title {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .72rem; font-weight: 500;
+  letter-spacing: .11em; text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 1.1rem;
+}
+.spine { list-style: none; position: relative; }
+.spine::before {
+  content: "";
+  position: absolute;
+  left: .6rem; top: .55rem; bottom: .9rem;
+  width: 2px;
+  background: var(--line);
+  border-radius: 2px;
+}
+.spine li { position: relative; }
+.spine a {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: .7rem;
+  align-items: baseline;
+  padding: .3rem 0;
+  font-family: "Familjen Grotesk", ui-sans-serif, sans-serif;
+  font-size: .875rem;
+  line-height: 1.35;
+  color: var(--dim);
+  text-decoration: none;
+}
+.spine a:hover { color: var(--ink); }
+.spine a[aria-current="true"] { color: var(--purple-deep); font-weight: 600; }
+
+.node {
+  position: relative;
+  z-index: 1;
+  width: 1.25rem; height: 1.25rem;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--line-strong);
+  display: grid; place-items: center;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .6rem; font-weight: 700;
+  color: var(--dim);
+  transition: background .18s, border-color .18s, color .18s;
+}
+.spine a[aria-current="true"] .node { border-color: var(--purple); color: var(--purple); }
+.spine li.is-done .node {
+  background: var(--green-bright);
+  border-color: var(--green-bright);
+  color: #06281B;
+}
+.spine li.is-done a { color: var(--ink-soft); }
+
+.rail-foot {
+  margin-top: 1.6rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--line);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .72rem;
+  color: var(--dim);
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+  align-items: flex-start;
+}
+.reset {
+  font: inherit;
+  background: none; border: 0; padding: 0;
+  color: var(--dim);
+  text-decoration: underline;
+  text-underline-offset: .2em;
+  cursor: pointer;
+}
+.reset:hover { color: var(--purple); }
+
+/* ============================================================
+   Article
+   ============================================================ */
+.doc { padding-top: 3.5rem; max-width: 44rem; }
+.doc > * + * { margin-top: 1.15rem; }
+
+.doc p { max-width: 68ch; }
+.doc h2 { font-size: var(--step-3); font-weight: 700; line-height: 1.1; }
+.doc h3 { font-size: var(--step-1); font-weight: 600; margin-top: 2.25rem; }
+.doc h4 {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .74rem; font-weight: 700;
+  letter-spacing: .11em; text-transform: uppercase;
+  color: var(--dim);
+  margin-top: 2rem;
+}
+
+.doc ul, .doc ol { padding-left: 1.3rem; max-width: 68ch; display: flex; flex-direction: column; gap: .5rem; }
+.doc li::marker { color: var(--purple); }
+.doc ol li::marker { font-family: "JetBrains Mono", monospace; font-size: .85em; }
+
+.doc strong { font-weight: 600; color: var(--ink); }
+
+:not(pre) > code {
+  background: var(--purple-wash);
+  color: var(--purple-deep);
+  padding: .1em .38em;
+  border-radius: 4px;
+  font-size: .855em;
+  border: 1px solid var(--line);
+}
+
+/* Checkpoint blocks ------------------------------------------------ */
+.cp {
+  scroll-margin-top: 1.5rem;
+  padding-top: 3.25rem;
+  border-top: 1px solid var(--line);
+  margin-top: 3.25rem;
+}
+.cp:first-of-type { border-top: 0; margin-top: 0; padding-top: 1rem; }
+
+.cp-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.cp-num {
+  flex: none;
+  margin-top: .35rem;
+  width: 2.55rem; height: 2.55rem;
+  border-radius: .8rem;
+  display: grid; place-items: center;
+  background: var(--purple-wash);
+  border: 1px solid var(--line-strong);
+  color: var(--purple-deep);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 700; font-size: .95rem;
+  font-variant-numeric: tabular-nums;
+}
+.cp-titles { display: flex; flex-direction: column; gap: .3rem; }
+.cp-eyebrow {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .7rem; font-weight: 500;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--dim);
+}
+.cp h2 { font-size: var(--step-2); }
+
+/* the "done" toggle */
+.done-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-top: 1.75rem;
+  padding: .7rem .95rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: .7rem;
+  background: var(--surface-sunk);
+  width: fit-content;
+  cursor: pointer;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .78rem;
+  color: var(--dim);
+  user-select: none;
+  transition: border-color .18s, background .18s, color .18s;
+}
+.done-row:hover { border-color: var(--purple); color: var(--ink-soft); }
+.done-row input { accent-color: var(--green); width: 1rem; height: 1rem; cursor: pointer; }
+.done-row:has(input:checked) {
+  background: var(--green-wash);
+  border-style: solid;
+  border-color: var(--green);
+  color: var(--green);
+}
+
+/* Callouts --------------------------------------------------------- */
+.note {
+  border-left: 3px solid var(--purple);
+  background: var(--purple-wash);
+  border-radius: 0 .6rem .6rem 0;
+  padding: .95rem 1.15rem;
+  font-size: .96rem;
+  color: var(--ink-soft);
+}
+.note.warn { border-left-color: var(--amber); background: var(--amber-wash); }
+.note.win  { border-left-color: var(--green); background: var(--green-wash); }
+.note-label {
+  display: block;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .69rem; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  margin-bottom: .3rem;
+  color: var(--purple-deep);
+}
+.note.warn .note-label { color: var(--amber); }
+.note.win  .note-label { color: var(--green); }
+
+/* Code ------------------------------------------------------------- */
+pre {
+  background: var(--code-bg);
+  color: var(--code-ink);
+  border-radius: .75rem;
+  padding: 1.05rem 1.2rem;
+  overflow-x: auto;
+  font-size: .83rem;
+  line-height: 1.6;
+  border: 1px solid var(--line-strong);
+}
+pre code { background: none; border: 0; padding: 0; color: inherit; font-size: inherit; }
+.c-com { color: var(--code-dim); font-style: italic; }
+.c-key { color: #C4B5FD; }
+.c-str { color: var(--green-bright); }
+.c-fn  { color: #FDE68A; }
+.c-num { color: #F9A8D4; }
+.c-attr{ color: #7DD3FC; }
+
+/* Disclosure ------------------------------------------------------- */
+details {
+  border: 1px solid var(--line);
+  border-radius: .75rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+details + details { margin-top: .7rem; }
+summary {
+  cursor: pointer;
+  list-style: none;
+  padding: .85rem 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  font-family: "Familjen Grotesk", ui-sans-serif, sans-serif;
+  font-weight: 600;
+  font-size: .96rem;
+  color: var(--ink);
+}
+summary::-webkit-details-marker { display: none; }
+summary::after {
+  content: "+";
+  margin-left: auto;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 400;
+  font-size: 1.15rem;
+  color: var(--dim);
+  transition: transform .2s;
+}
+details[open] summary::after { content: "−"; }
+summary:hover { background: var(--surface-sunk); }
+.tag {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .63rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: .22rem .5rem;
+  border-radius: 4px;
+  background: var(--purple-wash);
+  color: var(--purple-deep);
+  border: 1px solid var(--line-strong);
+}
+.tag.sol { background: var(--green-wash); color: var(--green); border-color: var(--green); }
+.d-body { padding: 0 1.1rem 1.1rem; }
+.d-body > * + * { margin-top: .85rem; }
+.d-body p, .d-body ul, .d-body ol { font-size: .96rem; }
+
+/* Spec table ------------------------------------------------------- */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: .75rem; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { padding: .6rem .9rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+th {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .68rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--dim);
+  background: var(--surface-sunk);
+  white-space: nowrap;
+}
+td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Limits grid ------------------------------------------------------ */
+.limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .9rem; }
+.limit {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: .8rem;
+  padding: 1rem 1.1rem;
+  box-shadow: var(--shadow);
+}
+.limit b {
+  display: block;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 1.35rem; font-weight: 700;
+  color: var(--purple);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  margin-bottom: .3rem;
+}
+.limit span { font-size: .87rem; color: var(--dim); display: block; }
+
+/* Footer ----------------------------------------------------------- */
+.foot {
+  border-top: 1px solid var(--line);
+  margin-top: 4rem;
+  padding-top: 1.6rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .76rem;
+  color: var(--dim);
+  max-width: 44rem;
+}
+</style>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <p class="kicker">Solana Summer · Vault Challenge</p>
+    <h1>Cap what a vault can <em>pay out</em> in one transaction.</h1>
+    <p class="standfirst">
+      The vault works. It has no limits. Add a per-transaction withdrawal ceiling —
+      stored in state, set at initialize, enforced on withdraw — then prove it with
+      tests and submit the whole thing as a pull request.
+    </p>
+    <dl class="facts">
+      <div class="fact"><dt>Level</dt><dd>Beginner–Intermediate</dd></div>
+      <div class="fact"><dt>Time</dt><dd>2–4 hours</dd></div>
+      <div class="fact"><dt>Stack</dt><dd>Anchor 1.0 · LiteSVM</dd></div>
+      <div class="fact"><dt>Tests</dt><dd>Rust, not TS</dd></div>
+      <div class="fact"><dt>Submit</dt><dd>Pull request</dd></div>
+    </dl>
+  </div>
+</header>
+
+<div class="shell">
+
+  <nav class="rail" aria-label="Checkpoints">
+    <p class="rail-title">Progress</p>
+    <ol class="spine" id="spine">
+      <li><a href="#cp0"><span class="node">0</span><span>Fork &amp; set up</span></a></li>
+      <li><a href="#cp1"><span class="node">1</span><span>Find the work</span></a></li>
+      <li><a href="#cp2"><span class="node">2</span><span>Add the field</span></a></li>
+      <li><a href="#cp3"><span class="node">3</span><span>Set it at init</span></a></li>
+      <li><a href="#cp4"><span class="node">4</span><span>A real error</span></a></li>
+      <li><a href="#cp5"><span class="node">5</span><span>Enforce the cap</span></a></li>
+      <li><a href="#cp6"><span class="node">6</span><span>Repair the harness</span></a></li>
+      <li><a href="#cp7"><span class="node">7</span><span>The three tests</span></a></li>
+      <li><a href="#cp8"><span class="node">8</span><span>Open the PR</span></a></li>
+      <li><a href="#solutions"><span class="node">S</span><span>Solutions</span></a></li>
+      <li><a href="#trouble"><span class="node">?</span><span>Troubleshooting</span></a></li>
+    </ol>
+    <div class="rail-foot">
+      <span id="tally">0 of 9 done</span>
+      <button class="reset" id="reset" type="button">Reset progress</button>
+    </div>
+  </nav>
+
+  <article class="doc">
+
+    <section>
+      <h3 style="margin-top:0">What you are building</h3>
+      <p>
+        <code>lamports-vault</code> is a working Anchor program. A user initializes a vault,
+        deposits SOL into a PDA, and withdraws it. Nothing stops them from draining the
+        whole thing in one call — which is fine for a demo and unacceptable for anything
+        holding real money.
+      </p>
+      <p>
+        You will add a <strong>per-transaction withdrawal limit</strong>: a
+        <code>max_withdraw</code> value written into vault state at creation, checked on
+        every withdraw, rejected with a custom error when exceeded.
+      </p>
+      <p>
+        The change is four lines of logic. Everything else — the field ordering, the
+        signature that ripples through eleven call sites, the tests that read raw bytes —
+        is what the exercise is actually about. This is what touching a shared struct in a
+        real codebase feels like.
+      </p>
+
+      <div class="note warn">
+        <span class="note-label">This repo has no README</span>
+        The challenge slide is the entire specification. Part of the work is reading an
+        unfamiliar codebase and deciding for yourself which files are in scope. Checkpoint 1
+        walks the repo so you can check your reading against it — try it yourself first.
+      </div>
+
+      <h4>What is different from the last assignment</h4>
+      <div class="limits">
+        <div class="limit"><b>Anchor 1.0</b><span>Not 0.31. <code>CpiContext::new</code> takes a <code>Pubkey</code> here, not an <code>AccountInfo</code>.</span></div>
+        <div class="limit"><b>LiteSVM</b><span>Tests are Rust, run by <code>cargo test</code>. No ts-mocha, no TypeScript client.</span></div>
+        <div class="limit"><b>1.89.0</b><span>Rust is pinned by <code>rust-toolchain.toml</code>. Let rustup honor it.</span></div>
+        <div class="limit"><b>PR</b><span>You submit by opening a pull request against the upstream repo, not by pushing to it.</span></div>
+      </div>
+    </section>
+
+    <!-- ============ CP 0 ============ -->
+    <section class="cp" id="cp0">
+      <div class="cp-head">
+        <span class="cp-num">00</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">Setup</span>
+          <h2>Fork &amp; set up</h2>
+        </div>
+      </div>
+
+      <p>
+        You do not have write access to the upstream repo, and you should not want it. The
+        standard open-source flow is: fork it into your own account, work on a branch there,
+        then ask the maintainer to pull your branch in.
+      </p>
+
+      <h4>1 · Fork on GitHub</h4>
+      <p>
+        Open <code>github.com/ASCorreia/solana-summer-vault</code> and click <strong>Fork</strong>
+        (top right). That creates <code>github.com/&lt;you&gt;/solana-summer-vault</code> — a full
+        copy under your account that you own completely.
+      </p>
+
+      <h4>2 · Clone your fork, not the original</h4>
+<pre><code>git clone https://github.com/&lt;you&gt;/solana-summer-vault.git
+cd solana-summer-vault</code></pre>
+
+      <h4>3 · Add the original as <code>upstream</code></h4>
+      <p>
+        Your clone knows about your fork (<code>origin</code>) and nothing else. Adding the
+        original as a second remote lets you pull in changes the maintainer makes while
+        you work.
+      </p>
+<pre><code>git remote add upstream https://github.com/ASCorreia/solana-summer-vault.git
+git remote -v
+
+<span class="c-com"># origin    https://github.com/&lt;you&gt;/solana-summer-vault.git   (fetch/push)</span>
+<span class="c-com"># upstream  https://github.com/ASCorreia/solana-summer-vault.git (fetch/push)</span></code></pre>
+
+      <div class="note">
+        <span class="note-label">The convention</span>
+        <code>origin</code> is always yours — the one you push to. <code>upstream</code> is
+        always theirs — the one you pull from. Getting these backwards is the most common
+        first-fork mistake, and it usually shows up as a permission error on push.
+      </div>
+
+      <h4>4 · Branch before you touch anything</h4>
+<pre><code>git switch -c feat/max-withdraw</code></pre>
+      <p>
+        Never do the work on <code>main</code>. Two concrete reasons: your <code>main</code>
+        stays a clean mirror of upstream so you can sync it at any time, and a PR opened from
+        <code>main</code> is painful to update or reuse for a second contribution.
+      </p>
+
+      <h4>5 · Build and run the existing tests</h4>
+<pre><code>anchor build
+cargo test</code></pre>
+
+      <div class="note warn">
+        <span class="note-label">Order matters, and the failure is not obvious</span>
+        The test harness loads the compiled program with
+        <code>include_bytes!("../../../../target/deploy/lamports_vault.so")</code>. If you run
+        <code>cargo test</code> before <code>anchor build</code>, you get a
+        <em>compile</em> error about a missing file, not a test failure. Build first, every
+        time.
+      </div>
+
+      <p>
+        All existing tests should pass before you change a line. If they do not, fix your
+        environment first — you cannot tell your breakage from theirs otherwise.
+      </p>
+
+      <label class="done-row"><input type="checkbox" data-cp="0" /> Mark checkpoint 0 complete</label>
+    </section>
+
+    <!-- ============ CP 1 ============ -->
+    <section class="cp" id="cp1">
+      <div class="cp-head">
+        <span class="cp-num">01</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">Orientation</span>
+          <h2>Find the work</h2>
+        </div>
+      </div>
+
+      <p>
+        Read the repo before you edit it. Here is the map, so you can check your own reading
+        against it.
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>File</th><th>What it holds</th><th>You touch it?</th></tr></thead>
+          <tbody>
+            <tr><td class="num">src/lib.rs</td><td>Thin routing — each <code>#[program]</code> fn calls into <code>instructions/</code></td><td>Yes, signature only</td></tr>
+            <tr><td class="num">src/state/vault_state.rs</td><td>The <code>VaultState</code> account struct</td><td><strong>Yes</strong></td></tr>
+            <tr><td class="num">src/instructions/initialize.rs</td><td>Creates the PDAs, seeds the vault with rent</td><td><strong>Yes</strong></td></tr>
+            <tr><td class="num">src/instructions/withdraw.rs</td><td>Signed CPI transfer out of the vault PDA</td><td><strong>Yes</strong></td></tr>
+            <tr><td class="num">src/error.rs</td><td>One placeholder <code>CustomError</code></td><td><strong>Yes</strong></td></tr>
+            <tr><td class="num">src/instructions/deposit.rs</td><td>Transfer in</td><td>No</td></tr>
+            <tr><td class="num">src/instructions/close.rs</td><td>Drain and close</td><td>No</td></tr>
+            <tr><td class="num">src/constants.rs</td><td>PDA seeds</td><td>No</td></tr>
+            <tr><td class="num">tests/common/mod.rs</td><td>LiteSVM harness and instruction builders</td><td><strong>Yes</strong></td></tr>
+            <tr><td class="num">tests/test_withdraw.rs</td><td>Existing withdraw tests</td><td><strong>Yes</strong></td></tr>
+            <tr><td class="num">tests/test_initialize.rs</td><td>Existing init tests, reads raw account bytes</td><td>Yes, call sites</td></tr>
+            <tr><td class="num">tests/test_deposit.rs</td><td>Existing deposit tests</td><td>Yes, call sites</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        If you guessed <code>src/lib.rs</code> was the main event, that is a reasonable guess
+        and it is wrong — that file is four one-line wrappers. The logic lives one directory
+        down in <code>instructions/</code>, and the state that logic reads lives in
+        <code>state/</code>. Splitting a program this way is normal Anchor structure once a
+        project outgrows a single file.
+      </p>
+
+      <h4>Read these two before continuing</h4>
+      <p>
+        <code>initialize.rs</code> — see how <code>set_inner</code> writes the whole struct at
+        once. Adding a field means this call stops compiling until you supply it, which is
+        Rust doing you a favor.
+      </p>
+      <p>
+        <code>withdraw.rs</code> — see how the vault PDA signs for itself via
+        <code>signer_seeds</code>. Your check goes in before that transfer ever happens.
+      </p>
+
+      <label class="done-row"><input type="checkbox" data-cp="1" /> Mark checkpoint 1 complete</label>
+    </section>
+
+    <!-- ============ CP 2 ============ -->
+    <section class="cp" id="cp2">
+      <div class="cp-head">
+        <span class="cp-num">02</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">State</span>
+          <h2>Add the field</h2>
+        </div>
+      </div>
+
+      <p>
+        <strong>What this does.</strong> Gives every vault somewhere to remember its own
+        limit. The cap belongs in state, not in a constant — different vaults should be able
+        to have different ceilings.
+      </p>
+
+      <p>Add <code>max_withdraw: u64</code> to <code>VaultState</code>.</p>
+
+      <p>
+        You do not need to touch <code>space =</code> in <code>initialize.rs</code>. The struct
+        derives <code>InitSpace</code>, and <code>VaultState::INIT_SPACE</code> recalculates
+        itself. That is the entire reason that derive exists.
+      </p>
+
+      <div class="note warn">
+        <span class="note-label">Put it AFTER the two bumps. This one bites.</span>
+        <p style="margin-top:.5rem">
+          <code>test_initialize.rs</code> reads the account's raw bytes and asserts
+          <code>data[8] == vault_bump</code> and <code>data[9] == bump</code>. Anchor's
+          discriminator takes bytes 0–8, and Borsh writes fields in declaration order with no
+          padding — so the first struct field lands at byte 8.
+        </p>
+      </div>
+
+      <p>Serialized both ways, so you can see exactly what happens:</p>
+
+<pre><code><span class="c-com">// max_withdraw AFTER the bumps — existing tests keep passing</span>
+{ vault_bump: <span class="c-num">254</span>, bump: <span class="c-num">253</span>, max_withdraw: <span class="c-num">5</span> }
+  -&gt; [<span class="c-str">254</span>, <span class="c-str">253</span>, 5, 0, 0, 0, 0, 0, 0, 0]
+     data[8]=<span class="c-str">254</span>  data[9]=<span class="c-str">253</span>   <span class="c-com">// what the test expects</span>
+
+<span class="c-com">// max_withdraw BEFORE the bumps — three tests break, confusingly</span>
+{ max_withdraw: <span class="c-num">5</span>, vault_bump: <span class="c-num">254</span>, bump: <span class="c-num">253</span> }
+  -&gt; [5, 0, 0, 0, 0, 0, 0, 0, <span class="c-str">254</span>, <span class="c-str">253</span>]
+     data[8]=5    data[9]=0     <span class="c-com">// "vault_bump mismatch" — nowhere near the real cause</span></code></pre>
+
+      <p>
+        Field order in an account struct is part of its wire format. Anything reading the
+        account by offset — another program, an indexer, a test — breaks when you reorder,
+        and it breaks quietly. Appending is almost always the safe move.
+      </p>
+
+      <label class="done-row"><input type="checkbox" data-cp="2" /> Mark checkpoint 2 complete</label>
+    </section>
+
+    <!-- ============ CP 3 ============ -->
+    <section class="cp" id="cp3">
+      <div class="cp-head">
+        <span class="cp-num">03</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">initialize</span>
+          <h2>Set it at init</h2>
+        </div>
+      </div>
+
+      <p>
+        <strong>What this does.</strong> Lets the caller choose the cap when they create the
+        vault, and writes it into state.
+      </p>
+
+      <p>Two edits, and they must agree:</p>
+
+      <ol>
+        <li>
+          <code>initialize_vault</code> in <code>instructions/initialize.rs</code> takes a new
+          <code>max_withdraw: u64</code> parameter and passes it into <code>set_inner</code>.
+        </li>
+        <li>
+          The <code>initialize</code> wrapper in <code>src/lib.rs</code> takes the same
+          parameter and forwards it.
+        </li>
+      </ol>
+
+      <p>
+        Miss the second and nothing compiles — the wrapper calls a function whose signature no
+        longer matches. That is the routing layer earning its keep.
+      </p>
+
+      <div class="note">
+        <span class="note-label">Why an argument rather than a constant</span>
+        A hardcoded ceiling would be simpler and worse. Taking it as an instruction argument
+        means the cap is a property of each vault, chosen by whoever creates it. It also means
+        the instruction's wire format changes — which is what checkpoint 6 is about.
+      </div>
+
+      <details>
+        <summary><span class="tag">Hint</span> set_inner wants every field</summary>
+        <div class="d-body">
+          <p>
+            <code>set_inner</code> takes a complete <code>VaultState</code>. Once the struct has
+            three fields, you supply three. Rust names the missing one for you, so let the
+            compiler drive.
+          </p>
+          <p>
+            Shorthand works if your parameter is named <code>max_withdraw</code> —
+            <code>max_withdraw,</code> on its own line rather than
+            <code>max_withdraw: max_withdraw</code>.
+          </p>
+        </div>
+      </details>
+
+      <label class="done-row"><input type="checkbox" data-cp="3" /> Mark checkpoint 3 complete</label>
+    </section>
+
+    <!-- ============ CP 4 ============ -->
+    <section class="cp" id="cp4">
+      <div class="cp-head">
+        <span class="cp-num">04</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">error.rs</span>
+          <h2>A real error</h2>
+        </div>
+      </div>
+
+      <p>
+        <strong>What this does.</strong> Gives the failure a name and a message a caller can
+        actually act on.
+      </p>
+      <p>
+        <code>error.rs</code> currently holds one placeholder variant with the message
+        <code>"Custom error message"</code>. Add a real one — something like
+        <code>ExceedsMaxWithdraw</code> with a message that says what went wrong.
+      </p>
+
+      <div class="note">
+        <span class="note-label">Why not just return a generic error</span>
+        Anchor assigns each variant a stable numeric code and surfaces the message in
+        transaction logs. A client can branch on the specific code to show "over your limit"
+        instead of "transaction failed". Vague error messages are how users end up filing
+        support tickets that say "it didn't work".
+      </div>
+
+      <p>
+        Leave the placeholder <code>CustomError</code> where it is. Deleting it would shift
+        every error code after it, and it is not yours to remove in this PR.
+      </p>
+
+      <label class="done-row"><input type="checkbox" data-cp="4" /> Mark checkpoint 4 complete</label>
+    </section>
+
+    <!-- ============ CP 5 ============ -->
+    <section class="cp" id="cp5">
+      <div class="cp-head">
+        <span class="cp-num">05</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">withdraw</span>
+          <h2>Enforce the cap</h2>
+        </div>
+      </div>
+
+      <p>
+        <strong>What this does.</strong> Rejects any withdrawal larger than the vault's limit,
+        before any lamports move.
+      </p>
+
+      <p>
+        In <code>withdraw_lamports</code>, compare <code>amount</code> against
+        <code>ctx.accounts.vault_state.max_withdraw</code> and bail with your new error if it
+        is larger.
+      </p>
+
+      <h4>Requirements</h4>
+      <ol>
+        <li>The check runs <strong>before</strong> the CPI transfer, not after.</li>
+        <li><code>amount == max_withdraw</code> is allowed. It is a limit, not a strict bound.</li>
+        <li>Use <code>require!</code> with your custom error, not a bare <code>panic!</code> or <code>assert!</code>.</li>
+      </ol>
+
+      <details>
+        <summary><span class="tag">Hint</span> Importing the error type</summary>
+        <div class="d-body">
+          <p>
+            <code>withdraw.rs</code> does not import <code>ErrorCode</code> yet. Extend the
+            existing <code>use crate::{...}</code> line rather than adding a second one — the
+            file already pulls in <code>VAULT_SEED</code> and friends the same way.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag">Hint</span> Off-by-one on the boundary</summary>
+        <div class="d-body">
+          <p>
+            <code>require!(amount &lt;= max, ...)</code> and
+            <code>require!(amount &lt; max, ...)</code> differ on exactly one input, and the
+            challenge asks you to test that input specifically. "Exceeds the limit" means
+            strictly greater than. A withdrawal of exactly the cap must succeed.
+          </p>
+        </div>
+      </details>
+
+      <div class="note win">
+        <span class="note-label">Check yourself</span>
+        <code>anchor build</code> succeeds and the program logic is done. The remaining
+        checkpoints are about the tests — which currently do not compile, and that is expected.
+      </div>
+
+      <label class="done-row"><input type="checkbox" data-cp="5" /> Mark checkpoint 5 complete</label>
+    </section>
+
+    <!-- ============ CP 6 ============ -->
+    <section class="cp" id="cp6">
+      <div class="cp-head">
+        <span class="cp-num">06</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">tests/common</span>
+          <h2>Repair the harness</h2>
+        </div>
+      </div>
+
+      <p>
+        Changing an instruction's arguments changes its serialized data, so every test that
+        builds an <code>initialize</code> instruction is now wrong. The compiler will list
+        them; here is the whole set up front.
+      </p>
+
+      <h4>In <code>tests/common/mod.rs</code></h4>
+      <ul>
+        <li><code>build_initialize_ix</code> takes a <code>max_withdraw: u64</code> and passes it into <code>Initialize { max_withdraw }</code>.</li>
+        <li><code>initialize_vault</code> (the convenience wrapper) takes it too and forwards it.</li>
+      </ul>
+
+      <h4>Then eleven call sites</h4>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>File</th><th>Lines</th><th>Call</th></tr></thead>
+          <tbody>
+            <tr><td class="num">test_deposit.rs</td><td class="num">17, 48, 90, 107</td><td class="num">initialize_vault(&amp;mut svm, &amp;user)</td></tr>
+            <tr><td class="num">test_initialize.rs</td><td class="num">20, 49, 69, 71</td><td class="num">build_initialize_ix(&amp;pubkey)</td></tr>
+            <tr><td class="num">test_withdraw.rs</td><td class="num">18, 68, 109</td><td class="num">initialize_vault(&amp;mut svm, &amp;user)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        For the tests that are not about the limit, pass something generous —
+        <code>100 * ONE_SOL</code> — so the cap never interferes with what they were written to
+        check. A deposit test failing because of a withdrawal ceiling would be a bad test.
+      </p>
+
+      <div class="note">
+        <span class="note-label">This is the actual lesson of the checkpoint</span>
+        Four lines of program logic just forced edits across four files and eleven call sites.
+        That ratio is normal when you change a shared interface, and it is why "just add a
+        parameter" is never as small as it sounds. Let the compiler enumerate the damage
+        rather than hunting by hand — run <code>cargo test</code> and work the error list top
+        to bottom.
+      </div>
+
+      <label class="done-row"><input type="checkbox" data-cp="6" /> Mark checkpoint 6 complete</label>
+    </section>
+
+    <!-- ============ CP 7 ============ -->
+    <section class="cp" id="cp7">
+      <div class="cp-head">
+        <span class="cp-num">07</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">tests/test_withdraw.rs</span>
+          <h2>The three tests</h2>
+        </div>
+      </div>
+
+      <p>The challenge names them, and the middle one is the point:</p>
+
+      <ol>
+        <li><strong>A valid withdrawal</strong> — under the cap, succeeds.</li>
+        <li><strong>Exactly at the limit</strong> — <code>amount == max_withdraw</code>, succeeds.</li>
+        <li><strong>Over the limit</strong> — one lamport more, fails.</li>
+      </ol>
+
+      <p>
+        Two and three are a boundary pair. Together they pin down <em>exactly</em> where the
+        line sits, and they are the only tests that can tell <code>&lt;=</code> from
+        <code>&lt;</code>. A suite with only "works" and "obviously too much" passes for both
+        implementations, one of which is wrong.
+      </p>
+
+      <h4>Shape of each test</h4>
+      <ol>
+        <li>Fresh <code>setup_svm()</code>, fresh <code>Keypair</code>, <code>fund</code> it.</li>
+        <li><code>initialize_vault</code> with a cap you choose — pick a round number you can reason about, like <code>2 * ONE_SOL</code>.</li>
+        <li>Deposit enough that the vault can actually cover the withdrawal. A rejection because the vault was empty proves nothing about your cap.</li>
+        <li>Attempt the withdrawal and assert on the result.</li>
+      </ol>
+
+      <details>
+        <summary><span class="tag">Hint</span> Asserting success vs failure</summary>
+        <div class="d-body">
+          <p>
+            <code>send(...)</code> returns a <code>Result</code>. Existing tests use
+            <code>.expect("...should succeed")</code> for the happy path and
+            <code>assert!(res.is_err(), "...")</code> for rejection. Follow the file's style
+            rather than inventing your own.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag">Hint</span> Making the over-limit test honest</summary>
+        <div class="d-body">
+          <p>
+            Use <code>max_withdraw + 1</code>, not some large round number. One lamport over is
+            the smallest input that must fail, so it cannot pass for an unrelated reason —
+            insufficient funds, a bad PDA, an arithmetic overflow somewhere else.
+          </p>
+          <p>
+            Stronger still: assert the failure logs mention your error. A test that accepts
+            <em>any</em> error will keep passing after you break the vault in a completely
+            different way.
+          </p>
+        </div>
+      </details>
+
+      <div class="note win">
+        <span class="note-label">Check yourself</span>
+        <code>anchor build &amp;&amp; cargo test</code> — every pre-existing test still passes,
+        plus your three. If an old test broke, you changed behavior you were not asked to
+        change. Go back to checkpoint 2 and check your field order.
+      </div>
+
+      <label class="done-row"><input type="checkbox" data-cp="7" /> Mark checkpoint 7 complete</label>
+    </section>
+
+    <!-- ============ CP 8 ============ -->
+    <section class="cp" id="cp8">
+      <div class="cp-head">
+        <span class="cp-num">08</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">Submit</span>
+          <h2>Open the PR</h2>
+        </div>
+      </div>
+
+      <p>
+        A pull request is a request, addressed to a person. Everything below is about making
+        that person's job easy.
+      </p>
+
+      <h4>1 · Check what you are about to commit</h4>
+<pre><code>git status
+git diff</code></pre>
+
+      <div class="note warn">
+        <span class="note-label">This repo's .gitignore only covers /target</span>
+        It does <strong>not</strong> ignore <code>node_modules/</code> or <code>.anchor/</code>.
+        If you ran <code>yarn</code>, you are one <code>git add .</code> away from a pull
+        request containing thousands of files. Read <code>git status</code> before staging,
+        every time — and prefer naming your files explicitly over <code>git add .</code>.
+      </div>
+
+      <h4>2 · Commit in logical pieces</h4>
+<pre><code>git add programs/lamports-vault/src
+git commit -m "Add per-transaction withdrawal limit to vault state"
+
+git add programs/lamports-vault/tests
+git commit -m "Test withdrawal limit at, under, and over the cap"</code></pre>
+      <p>
+        Imperative mood — "Add", not "Added" or "Adding". It reads as an instruction to the
+        codebase, which is the convention git itself uses. Two focused commits beat one
+        <code>final changes</code>, and beat nine commits called <code>fix</code>.
+      </p>
+
+      <h4>3 · Sync with upstream before you push</h4>
+<pre><code>git fetch upstream
+git rebase upstream/main</code></pre>
+      <p>
+        If the maintainer changed anything while you worked, this replays your commits on top
+        of their latest. Doing it now means resolving conflicts on your own time instead of
+        being asked to in review.
+      </p>
+
+      <h4>4 · Push to your fork</h4>
+<pre><code>git push -u origin feat/max-withdraw</code></pre>
+      <p>
+        To <code>origin</code> — your fork. You have no write access to
+        <code>upstream</code>, and a push there will be rejected.
+      </p>
+
+      <h4>5 · Open the pull request</h4>
+      <p>
+        GitHub shows a "Compare &amp; pull request" banner on your fork right after the push.
+        Check the direction carefully before submitting:
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Field</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>base repository</td><td class="num">ASCorreia/solana-summer-vault</td></tr>
+            <tr><td>base branch</td><td class="num">main</td></tr>
+            <tr><td>head repository</td><td class="num">&lt;you&gt;/solana-summer-vault</td></tr>
+            <tr><td>compare branch</td><td class="num">feat/max-withdraw</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>6 · Write a description worth reading</h4>
+<pre><code><span class="c-com">## What</span>
+Adds a per-transaction withdrawal limit to the lamports vault.
+
+<span class="c-com">## Why</span>
+The vault currently allows draining the full balance in a single
+withdraw. A per-transaction cap bounds the damage from a leaked key
+or a buggy client.
+
+<span class="c-com">## How</span>
+- `max_withdraw: u64` appended to `VaultState` (appended, not
+  prepended, so the byte offsets `test_initialize` asserts on stay valid)
+- set from a new `initialize` argument
+- `withdraw` rejects `amount > max_withdraw` with `ExceedsMaxWithdraw`
+
+<span class="c-com">## Testing</span>
+`anchor build && cargo test` — all existing tests pass, plus three new
+ones covering under, exactly at, and one lamport over the cap.</code></pre>
+
+      <p>
+        Explain the <em>why</em> and any non-obvious decision. The field-order note is exactly
+        the kind of thing that earns trust: it shows you understood a consequence a reviewer
+        would otherwise have to catch.
+      </p>
+
+      <h4>7 · After you submit</h4>
+      <ul>
+        <li>Leave <strong>"Allow edits by maintainers"</strong> checked. It lets them push a small fix instead of asking you for one.</li>
+        <li>Respond to review by pushing more commits to the same branch — the PR updates itself. Do not open a second PR.</li>
+        <li>Do not force-push once review has started unless asked; it invalidates the comments people have already left.</li>
+        <li>Reply to every comment, even just to say you have done it. Silence reads as disagreement.</li>
+      </ul>
+
+      <label class="done-row"><input type="checkbox" data-cp="8" /> Mark checkpoint 8 complete</label>
+    </section>
+
+    <!-- ============ SOLUTIONS ============ -->
+    <section class="cp" id="solutions">
+      <div class="cp-head">
+        <span class="cp-num" style="background:var(--green-wash);border-color:var(--green);color:var(--green)">S</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">Reference</span>
+          <h2>Solutions</h2>
+        </div>
+      </div>
+
+      <p>
+        Let the compiler walk you through it first. Most of this challenge is Rust telling you
+        precisely what is broken, and reading a solution skips the part where you learn to
+        read those messages.
+      </p>
+
+      <details>
+        <summary><span class="tag sol">Solution</span> Checkpoint 2 — state/vault_state.rs</summary>
+        <div class="d-body">
+<pre><code><span class="c-attr">#[account]</span>
+<span class="c-attr">#[derive(InitSpace)]</span>
+<span class="c-key">pub struct</span> VaultState {
+    <span class="c-key">pub</span> vault_bump: <span class="c-key">u8</span>,     <span class="c-com">// The bump seed for the vault account PDA</span>
+    <span class="c-key">pub</span> bump: <span class="c-key">u8</span>,           <span class="c-com">// The bump seed for the VaultState PDA itself</span>
+    <span class="c-key">pub</span> max_withdraw: <span class="c-key">u64</span>,  <span class="c-com">// Per-transaction withdrawal cap, in lamports</span>
+}</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag sol">Solution</span> Checkpoint 3 — initialize.rs and lib.rs</summary>
+        <div class="d-body">
+<pre><code><span class="c-com">// instructions/initialize.rs</span>
+<span class="c-key">pub fn</span> <span class="c-fn">initialize_vault</span>(ctx: Context&lt;Initialize&gt;, max_withdraw: <span class="c-key">u64</span>) -&gt; Result&lt;()&gt; {
+    <span class="c-com">// ... unchanged rent transfer ...</span>
+
+    ctx.accounts.vault_state.<span class="c-fn">set_inner</span>(VaultState {
+        vault_bump: ctx.bumps.vault,
+        bump: ctx.bumps.vault_state,
+        max_withdraw,
+    });
+
+    <span class="c-fn">Ok</span>(())
+}</code></pre>
+<pre><code><span class="c-com">// lib.rs</span>
+<span class="c-key">pub fn</span> <span class="c-fn">initialize</span>(ctx: Context&lt;Initialize&gt;, max_withdraw: <span class="c-key">u64</span>) -&gt; Result&lt;()&gt; {
+    initialize::<span class="c-fn">initialize_vault</span>(ctx, max_withdraw)
+}</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag sol">Solution</span> Checkpoint 4 — error.rs</summary>
+        <div class="d-body">
+<pre><code><span class="c-attr">#[error_code]</span>
+<span class="c-key">pub enum</span> ErrorCode {
+    <span class="c-attr">#[msg(<span class="c-str">"Custom error message"</span>)]</span>
+    CustomError,
+    <span class="c-attr">#[msg(<span class="c-str">"Withdrawal amount exceeds the per-transaction limit"</span>)]</span>
+    ExceedsMaxWithdraw,
+}</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag sol">Solution</span> Checkpoint 5 — withdraw.rs</summary>
+        <div class="d-body">
+<pre><code><span class="c-key">use</span> crate::{error::ErrorCode, VAULT_SEED, VAULT_STATE_SEED, VaultState};
+
+<span class="c-key">pub fn</span> <span class="c-fn">withdraw_lamports</span>(ctx: Context&lt;Withdraw&gt;, amount: <span class="c-key">u64</span>) -&gt; Result&lt;()&gt; {
+    <span class="c-fn">require!</span>(
+        amount &lt;= ctx.accounts.vault_state.max_withdraw,
+        ErrorCode::ExceedsMaxWithdraw
+    );
+
+    <span class="c-fn">msg!</span>(<span class="c-str">"Withdrawing lamports from vault"</span>);
+    <span class="c-com">// ... unchanged CPI transfer ...</span>
+}</code></pre>
+          <p><code>&lt;=</code>, so a withdrawal of exactly the cap is allowed.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag sol">Solution</span> Checkpoint 6 — tests/common/mod.rs</summary>
+        <div class="d-body">
+<pre><code><span class="c-key">pub fn</span> <span class="c-fn">build_initialize_ix</span>(payer: &amp;Pubkey, max_withdraw: <span class="c-key">u64</span>) -&gt; Instruction {
+    <span class="c-key">let</span> (vault_state, _) = <span class="c-fn">vault_state_pda</span>(payer);
+    <span class="c-key">let</span> (vault, _) = <span class="c-fn">vault_pda</span>(payer);
+
+    Instruction::<span class="c-fn">new_with_bytes</span>(
+        lamports_vault::<span class="c-fn">id</span>(),
+        &amp;lamports_vault::instruction::Initialize { max_withdraw }.<span class="c-fn">data</span>(),
+        lamports_vault::accounts::Initialize {
+            user: *payer,
+            vault_state,
+            vault,
+            system_program: system_program::ID,
+        }
+        .<span class="c-fn">to_account_metas</span>(<span class="c-fn">None</span>),
+    )
+}
+
+<span class="c-key">pub fn</span> <span class="c-fn">initialize_vault</span>(svm: &amp;<span class="c-key">mut</span> LiteSVM, payer: &amp;Keypair, max_withdraw: <span class="c-key">u64</span>) {
+    <span class="c-key">let</span> ix = <span class="c-fn">build_initialize_ix</span>(&amp;payer.<span class="c-fn">pubkey</span>(), max_withdraw);
+    <span class="c-fn">send</span>(svm, payer, &amp;[ix], &amp;[]).<span class="c-fn">expect</span>(<span class="c-str">"initialize should succeed"</span>);
+}</code></pre>
+          <p>Then update the eleven call sites — pass <code>100 * ONE_SOL</code> in tests that are not about the cap.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag sol">Solution</span> Checkpoint 7 — the three tests</summary>
+        <div class="d-body">
+<pre><code><span class="c-attr">#[test]</span>
+<span class="c-key">fn</span> <span class="c-fn">withdraw_under_the_limit_succeeds</span>() {
+    <span class="c-key">let</span> <span class="c-key">mut</span> svm = <span class="c-fn">setup_svm</span>();
+    <span class="c-key">let</span> user = Keypair::<span class="c-fn">new</span>();
+    <span class="c-fn">fund</span>(&amp;<span class="c-key">mut</span> svm, &amp;user.<span class="c-fn">pubkey</span>(), <span class="c-num">10</span> * ONE_SOL);
+
+    <span class="c-key">let</span> max = <span class="c-num">2</span> * ONE_SOL;
+    <span class="c-fn">initialize_vault</span>(&amp;<span class="c-key">mut</span> svm, &amp;user, max);
+    <span class="c-fn">send</span>(&amp;<span class="c-key">mut</span> svm, &amp;user, &amp;[<span class="c-fn">build_deposit_ix</span>(&amp;user.<span class="c-fn">pubkey</span>(), <span class="c-num">5</span> * ONE_SOL)], &amp;[])
+        .<span class="c-fn">expect</span>(<span class="c-str">"deposit should succeed"</span>);
+
+    <span class="c-fn">send</span>(&amp;<span class="c-key">mut</span> svm, &amp;user, &amp;[<span class="c-fn">build_withdraw_ix</span>(&amp;user.<span class="c-fn">pubkey</span>(), max - <span class="c-num">1</span>)], &amp;[])
+        .<span class="c-fn">expect</span>(<span class="c-str">"withdrawing under the limit should succeed"</span>);
+}
+
+<span class="c-attr">#[test]</span>
+<span class="c-key">fn</span> <span class="c-fn">withdraw_exactly_at_the_limit_succeeds</span>() {
+    <span class="c-key">let</span> <span class="c-key">mut</span> svm = <span class="c-fn">setup_svm</span>();
+    <span class="c-key">let</span> user = Keypair::<span class="c-fn">new</span>();
+    <span class="c-fn">fund</span>(&amp;<span class="c-key">mut</span> svm, &amp;user.<span class="c-fn">pubkey</span>(), <span class="c-num">10</span> * ONE_SOL);
+
+    <span class="c-key">let</span> max = <span class="c-num">2</span> * ONE_SOL;
+    <span class="c-fn">initialize_vault</span>(&amp;<span class="c-key">mut</span> svm, &amp;user, max);
+    <span class="c-fn">send</span>(&amp;<span class="c-key">mut</span> svm, &amp;user, &amp;[<span class="c-fn">build_deposit_ix</span>(&amp;user.<span class="c-fn">pubkey</span>(), <span class="c-num">5</span> * ONE_SOL)], &amp;[])
+        .<span class="c-fn">expect</span>(<span class="c-str">"deposit should succeed"</span>);
+
+    <span class="c-com">// The boundary is inclusive: `amount == max_withdraw` must be allowed.</span>
+    <span class="c-fn">send</span>(&amp;<span class="c-key">mut</span> svm, &amp;user, &amp;[<span class="c-fn">build_withdraw_ix</span>(&amp;user.<span class="c-fn">pubkey</span>(), max)], &amp;[])
+        .<span class="c-fn">expect</span>(<span class="c-str">"withdrawing exactly the limit should succeed"</span>);
+}
+
+<span class="c-attr">#[test]</span>
+<span class="c-key">fn</span> <span class="c-fn">withdraw_over_the_limit_fails</span>() {
+    <span class="c-key">let</span> <span class="c-key">mut</span> svm = <span class="c-fn">setup_svm</span>();
+    <span class="c-key">let</span> user = Keypair::<span class="c-fn">new</span>();
+    <span class="c-fn">fund</span>(&amp;<span class="c-key">mut</span> svm, &amp;user.<span class="c-fn">pubkey</span>(), <span class="c-num">10</span> * ONE_SOL);
+
+    <span class="c-key">let</span> max = <span class="c-num">2</span> * ONE_SOL;
+    <span class="c-fn">initialize_vault</span>(&amp;<span class="c-key">mut</span> svm, &amp;user, max);
+    <span class="c-com">// Deposit far more than we try to withdraw, so a rejection can ONLY be the cap.</span>
+    <span class="c-fn">send</span>(&amp;<span class="c-key">mut</span> svm, &amp;user, &amp;[<span class="c-fn">build_deposit_ix</span>(&amp;user.<span class="c-fn">pubkey</span>(), <span class="c-num">5</span> * ONE_SOL)], &amp;[])
+        .<span class="c-fn">expect</span>(<span class="c-str">"deposit should succeed"</span>);
+
+    <span class="c-key">let</span> res = <span class="c-fn">send</span>(&amp;<span class="c-key">mut</span> svm, &amp;user, &amp;[<span class="c-fn">build_withdraw_ix</span>(&amp;user.<span class="c-fn">pubkey</span>(), max + <span class="c-num">1</span>)], &amp;[]);
+    <span class="c-fn">assert!</span>(res.<span class="c-fn">is_err</span>(), <span class="c-str">"one lamport over the limit must be rejected"</span>);
+}</code></pre>
+        </div>
+      </details>
+    </section>
+
+    <!-- ============ TROUBLESHOOTING ============ -->
+    <section class="cp" id="trouble">
+      <div class="cp-head">
+        <span class="cp-num" style="background:var(--amber-wash);border-color:var(--amber);color:var(--amber)">?</span>
+        <div class="cp-titles">
+          <span class="cp-eyebrow">When it breaks</span>
+          <h2>Troubleshooting</h2>
+        </div>
+      </div>
+
+      <details>
+        <summary><span class="tag">Error</span> couldn't read .../target/deploy/lamports_vault.so</summary>
+        <div class="d-body">
+          <p>
+            The test harness embeds the compiled program at compile time with
+            <code>include_bytes!</code>, so a missing <code>.so</code> is a build error rather
+            than a test failure. Run <code>anchor build</code> first — and again after every
+            change to the program, before <code>cargo test</code>.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag">Error</span> vault_bump mismatch, in a test you never touched</summary>
+        <div class="d-body">
+          <p>
+            You put <code>max_withdraw</code> before the bumps in <code>VaultState</code>.
+            <code>test_initialize.rs</code> reads <code>data[8]</code> and <code>data[9]</code>
+            directly, and your new <code>u64</code> now occupies those bytes. Move the field to
+            the end of the struct. Checkpoint 2 has the byte-level comparison.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag">Error</span> this function takes 3 arguments but 2 were supplied</summary>
+        <div class="d-body">
+          <p>
+            Expected — you changed a shared helper and the call sites have not caught up.
+            Checkpoint 6 lists all eleven. Work the compiler's list from the top; each fix
+            usually reveals the next.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag">Error</span> Your tests pass but the limit does not work</summary>
+        <div class="d-body">
+          <p>
+            Most likely you rebuilt nothing. <code>cargo test</code> uses whatever
+            <code>.so</code> is on disk, so testing after editing <code>.rs</code> files but
+            before <code>anchor build</code> tests your <em>previous</em> program. Use
+            <code>anchor build &amp;&amp; cargo test</code> as one command and the problem
+            disappears.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag">Error</span> Permission denied (403) when pushing</summary>
+        <div class="d-body">
+          <p>
+            You are pushing to <code>upstream</code> instead of <code>origin</code>. Check with
+            <code>git remote -v</code>: <code>origin</code> must be
+            <code>&lt;you&gt;/solana-summer-vault</code>. If you cloned the original repo by
+            mistake, fix it without re-cloning:
+          </p>
+<pre><code>git remote set-url origin https://github.com/&lt;you&gt;/solana-summer-vault.git
+git remote add upstream https://github.com/ASCorreia/solana-summer-vault.git</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag">Error</span> Your PR shows hundreds of changed files</summary>
+        <div class="d-body">
+          <p>
+            You committed <code>node_modules/</code> or another build directory — the repo's
+            <code>.gitignore</code> only covers <code>/target</code>. Remove them from git while
+            keeping them on disk, then amend:
+          </p>
+<pre><code>git rm -r --cached node_modules .anchor
+echo "node_modules/" &gt;&gt; .gitignore
+echo ".anchor/" &gt;&gt; .gitignore
+git add .gitignore
+git commit --amend --no-edit
+git push --force-with-lease</code></pre>
+          <p>
+            Force-pushing is acceptable here because the PR has not been reviewed yet. Once
+            someone has commented, ask before rewriting history.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="tag">Error</span> Rust version or toolchain complaints</summary>
+        <div class="d-body">
+          <p>
+            <code>rust-toolchain.toml</code> pins <strong>1.89.0</strong>, and rustup installs it
+            automatically on first build. Do not override it with <code>+stable</code> — a
+            different compiler is a difference between your results and everyone else's.
+          </p>
+          <p>
+            This project uses <strong>Anchor 1.0.2</strong>. If you have seen 0.31 tutorials,
+            note that <code>CpiContext::new</code> takes a <code>Pubkey</code> here rather than
+            an <code>AccountInfo</code> — the existing code is correct, do not "fix" it.
+          </p>
+        </div>
+      </details>
+    </section>
+
+    <p class="foot">
+      Solana Summer · lamports-vault · program 9AvGuh5C8cYcYU7RwwWQU9iDFqWpjQ9MnGZ8cfbkJPLc · submit by pull request
+    </p>
+
+  </article>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var KEY = "vault-challenge-progress-v1";
+  var TOTAL = 9;
+
+  function read() {
+    try {
+      var v = window.localStorage.getItem(KEY);
+      return v ? JSON.parse(v) : {};
+    } catch (e) { return {}; }
+  }
+  function write(state) {
+    try { window.localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  var boxes = Array.prototype.slice.call(document.querySelectorAll(".done-row input[data-cp]"));
+  var items = Array.prototype.slice.call(document.querySelectorAll("#spine li"));
+  var tally = document.getElementById("tally");
+  var state = read();
+
+  function paint() {
+    var done = 0;
+    boxes.forEach(function (box) {
+      var i = Number(box.dataset.cp);
+      var on = !!state[i];
+      box.checked = on;
+      if (items[i]) items[i].classList.toggle("is-done", on);
+      if (on) done++;
+    });
+    if (tally) tally.textContent = done + " of " + TOTAL + " done";
+  }
+
+  boxes.forEach(function (box) {
+    box.addEventListener("change", function () {
+      state[Number(box.dataset.cp)] = box.checked;
+      write(state);
+      paint();
+    });
+  });
+
+  var reset = document.getElementById("reset");
+  if (reset) {
+    reset.addEventListener("click", function () {
+      state = {};
+      write(state);
+      paint();
+    });
+  }
+
+  paint();
+
+  // Highlight the checkpoint currently in view.
+  var links = Array.prototype.slice.call(document.querySelectorAll("#spine a"));
+  var sections = links
+    .map(function (a) { return document.querySelector(a.getAttribute("href")); })
+    .filter(Boolean);
+
+  if ("IntersectionObserver" in window && sections.length) {
+    var seen = {};
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { seen[en.target.id] = en.isIntersecting; });
+      var current = null;
+      for (var i = 0; i < sections.length; i++) {
+        if (seen[sections[i].id]) { current = sections[i].id; break; }
+      }
+      links.forEach(function (a) {
+        a.setAttribute("aria-current", a.getAttribute("href") === "#" + current ? "true" : "false");
+      });
+    }, { rootMargin: "-8% 0px -75% 0px" });
+    sections.forEach(function (s) { obs.observe(s); });
+  }
+})();
+</script>
+
+</body>
+</html>
