@@ -121,7 +121,7 @@ body {
   color: var(--ink);
   font-family: "Source Serif 4", ui-serif, Georgia, serif;
   font-size: var(--step-0);
-  line-height: 1.65;
+  line-height: 1.72;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -331,9 +331,9 @@ a:hover { color: var(--purple); }
    Article
    ============================================================ */
 .doc { padding-top: 3.5rem; max-width: 44rem; }
-.doc > * + * { margin-top: 1.15rem; }
+.doc > * + * { margin-top: 1.6rem; }
 
-.doc p { max-width: 68ch; }
+.doc p { max-width: 66ch; line-height: 1.78; }
 .doc h2 { font-size: var(--step-3); font-weight: 700; line-height: 1.1; }
 .doc h3 { font-size: var(--step-1); font-weight: 600; margin-top: 2.25rem; }
 .doc h4 {
@@ -344,11 +344,37 @@ a:hover { color: var(--purple); }
   margin-top: 2rem;
 }
 
-.doc ul, .doc ol { padding-left: 1.3rem; max-width: 68ch; display: flex; flex-direction: column; gap: .5rem; }
+.doc ul, .doc ol { padding-left: 1.3rem; max-width: 66ch; display: flex; flex-direction: column; gap: .7rem; }
+.doc li { line-height: 1.72; }
 .doc li::marker { color: var(--purple); }
 .doc ol li::marker { font-family: "JetBrains Mono", monospace; font-size: .85em; }
 
 .doc strong { font-weight: 600; color: var(--ink); }
+
+/* Rhythm inside a checkpoint — the blocks inside a <section class="cp">
+   had no vertical margins at all, which is what made the page read as a
+   wall. Spacing values only — no colours, fonts, or structure touched. */
+.doc section > * + * { margin-top: 1.5rem; }
+
+.doc section > h3,
+.doc section > h4 { margin-top: 2.9rem; }
+.doc section > h3 + *,
+.doc section > h4 + * { margin-top: 1rem; }
+
+.doc section > pre { margin-top: 1.85rem; }
+.doc section > pre + * { margin-top: 1.85rem; }
+
+.doc section > .note,
+.doc section > .tablewrap,
+.doc section > .limits,
+.doc section > details { margin-top: 2.1rem; }
+.doc section > .note + *,
+.doc section > .tablewrap + *,
+.doc section > .limits + *,
+.doc section > details + * { margin-top: 2.1rem; }
+.doc section > details + details { margin-top: 1rem; }
+
+.doc section > .done-row { margin-top: 3rem; }
 
 :not(pre) > code {
   background: var(--purple-wash);
@@ -362,9 +388,9 @@ a:hover { color: var(--purple); }
 /* Checkpoint blocks ------------------------------------------------ */
 .cp {
   scroll-margin-top: 1.5rem;
-  padding-top: 3.25rem;
+  padding-top: 4.75rem;
   border-top: 1px solid var(--line);
-  margin-top: 3.25rem;
+  margin-top: 4.75rem;
 }
 .cp:first-of-type { border-top: 0; margin-top: 0; padding-top: 1rem; }
 
@@ -372,7 +398,7 @@ a:hover { color: var(--purple); }
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.75rem;
 }
 .cp-num {
   flex: none;
@@ -401,7 +427,7 @@ a:hover { color: var(--purple); }
   display: flex;
   align-items: center;
   gap: .6rem;
-  margin-top: 1.75rem;
+  margin-top: 3rem;
   padding: .7rem .95rem;
   border: 1px dashed var(--line-strong);
   border-radius: .7rem;
@@ -428,10 +454,12 @@ a:hover { color: var(--purple); }
   border-left: 3px solid var(--purple);
   background: var(--purple-wash);
   border-radius: 0 .6rem .6rem 0;
-  padding: .95rem 1.15rem;
+  padding: 1.15rem 1.4rem;
   font-size: .96rem;
+  line-height: 1.7;
   color: var(--ink-soft);
 }
+.note > * + * { margin-top: .8rem; }
 .note.warn { border-left-color: var(--amber); background: var(--amber-wash); }
 .note.win  { border-left-color: var(--green); background: var(--green-wash); }
 .note-label {
@@ -450,10 +478,10 @@ pre {
   background: var(--code-bg);
   color: var(--code-ink);
   border-radius: .75rem;
-  padding: 1.05rem 1.2rem;
+  padding: 1.2rem 1.35rem;
   overflow-x: auto;
   font-size: .83rem;
-  line-height: 1.6;
+  line-height: 1.7;
   border: 1px solid var(--line-strong);
 }
 pre code { background: none; border: 0; padding: 0; color: inherit; font-size: inherit; }
@@ -508,9 +536,9 @@ summary:hover { background: var(--surface-sunk); }
   border: 1px solid var(--line-strong);
 }
 .tag.sol { background: var(--green-wash); color: var(--green); border-color: var(--green); }
-.d-body { padding: 0 1.1rem 1.1rem; }
-.d-body > * + * { margin-top: .85rem; }
-.d-body p, .d-body ul, .d-body ol { font-size: .96rem; }
+.d-body { padding: 0 1.35rem 1.35rem; }
+.d-body > * + * { margin-top: 1.15rem; }
+.d-body p, .d-body ul, .d-body ol { font-size: .96rem; max-width: 64ch; }
 
 /* Gated solutions -------------------------------------------------- */
 .sol-gate.is-locked > summary { color: var(--dim); }
@@ -546,7 +574,7 @@ summary:hover { background: var(--surface-sunk); }
 /* Spec table ------------------------------------------------------- */
 .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: .75rem; background: var(--surface); }
 table { border-collapse: collapse; width: 100%; font-size: .9rem; }
-th, td { padding: .6rem .9rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th, td { padding: .78rem 1rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.55; }
 tbody tr:last-child td { border-bottom: 0; }
 th {
   font-family: "JetBrains Mono", ui-monospace, monospace;
