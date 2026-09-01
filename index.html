@@ -633,33 +633,21 @@ td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular
   </nav>
 
   <article class="doc">
-
     <section>
       <h3 style="margin-top:0">What you are building</h3>
       <p>
-        <code>lamports-vault</code> is a working Anchor program. A user initializes a vault,
-        deposits SOL into a PDA, and withdraws it. Nothing stops them from draining the
-        whole thing in one call — which is fine for a demo and unacceptable for anything
-        holding real money.
+        <code>lamports-vault</code> already works. Someone can create one, put SOL in, and take SOL out. 
+        The catch: right now they can take everything out in a single go.
       </p>
       <p>
-        You will add a <strong>per-transaction withdrawal limit</strong>: a
-        <code>max_withdraw</code> value written into vault state at creation, checked on
-        every withdraw, rejected with a custom error when exceeded.
+        Your job is to add a spending limit. Each vault gets a max_withdraw amount,
+        set when it is created, and any withdrawal bigger than that gets turned away.
       </p>
       <p>
-        The change is four lines of logic. Everything else — the field ordering, the
-        signature that ripples through eleven call sites, the tests that read raw bytes —
-        is what the exercise is actually about. This is what touching a shared struct in a
-        real codebase feels like.
+        The change itself is small — one new field, one check, and a clear error message. 
+        Most of your time will go into updating the tests so they pass again. That is normal, 
+        and it is a big part of what changing someone else's code actually looks like.
       </p>
-
-      <div class="note warn">
-        <span class="note-label">This repo has no README</span>
-        The challenge slide is the entire specification. Part of the work is reading an
-        unfamiliar codebase and deciding for yourself which files are in scope. Checkpoint 1
-        walks the repo so you can check your reading against it — try it yourself first.
-      </div>
 
     </section>
 
@@ -674,7 +662,7 @@ td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular
       </div>
 
       <p>
-        You do not have write access to the upstream repo, and you should not want it. The
+        You do not have write access to Andre's repo, and you should not want it. The
         standard open-source flow is: fork it into your own account, work on a branch there,
         then ask the maintainer to pull your branch in.
       </p>
@@ -749,8 +737,7 @@ cargo test</code></pre>
       </div>
 
       <p>
-        Read the repo before you edit it. Here is the map, so you can check your own reading
-        against it.
+        Here is a map of the repo for you, give it a read and check back when you are struggling on finding where you need to make changes
       </p>
 
       <div class="tablewrap">
@@ -772,14 +759,6 @@ cargo test</code></pre>
           </tbody>
         </table>
       </div>
-
-      <p>
-        If you guessed <code>src/lib.rs</code> was the main event, that is a reasonable guess
-        and it is wrong — that file is four one-line wrappers. The logic lives one directory
-        down in <code>instructions/</code>, and the state that logic reads lives in
-        <code>state/</code>. Splitting a program this way is normal Anchor structure once a
-        project outgrows a single file.
-      </p>
 
       <h4>Read these two before continuing</h4>
       <p>
