@@ -602,7 +602,7 @@ td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular
     <dl class="facts">
       <div class="fact"><dt>Level</dt><dd>Beginner–Intermediate</dd></div>
       <div class="fact"><dt>Time</dt><dd>2–4 hours</dd></div>
-      <div class="fact"><dt>Stack</dt><dd>Anchor 1.0 · LiteSVM</dd></div>
+      <div class="fact"><dt>Stack</dt><dd>Anchor 1.1.2 · LiteSVM</dd></div>
       <div class="fact"><dt>Tests</dt><dd>Rust, not TS</dd></div>
       <div class="fact"><dt>Submit</dt><dd>Pull request</dd></div>
     </dl>
@@ -681,14 +681,14 @@ td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular
 
       <h4>1 · Fork on GitHub</h4>
       <p>
-        Open <code>github.com/ASCorreia/solana-summer-vault</code> and click <strong>Fork</strong>
-        (top right). That creates <code>github.com/&lt;you&gt;/solana-summer-vault</code> — a full
+        Open <code>github.com/ASCorreia/solana-fall-vault</code> and click <strong>Fork</strong>
+        (top right). That creates <code>github.com/&lt;you&gt;/solana-fall-vault</code> — a full
         copy under your account that you own completely.
       </p>
 
       <h4>2 · Clone your fork, not the original</h4>
-<pre><code>git clone https://github.com/&lt;you&gt;/solana-summer-vault.git
-cd solana-summer-vault</code></pre>
+<pre><code>git clone https://github.com/&lt;you&gt;/solana-fall-vault.git
+cd solana-fall-vault</code></pre>
 
       <h4>3 · Add the original as <code>upstream</code></h4>
       <p>
@@ -696,11 +696,11 @@ cd solana-summer-vault</code></pre>
         original as a second remote lets you pull in changes the maintainer makes while
         you work.
       </p>
-<pre><code>git remote add upstream https://github.com/ASCorreia/solana-summer-vault.git
+<pre><code>git remote add upstream https://github.com/ASCorreia/solana-fall-vault.git
 git remote -v
 
-<span class="c-com"># origin    https://github.com/&lt;you&gt;/solana-summer-vault.git   (fetch/push)</span>
-<span class="c-com"># upstream  https://github.com/ASCorreia/solana-summer-vault.git (fetch/push)</span></code></pre>
+<span class="c-com"># origin    https://github.com/&lt;you&gt;/solana-fall-vault.git   (fetch/push)</span>
+<span class="c-com"># upstream  https://github.com/ASCorreia/solana-fall-vault.git (fetch/push)</span></code></pre>
 
       <div class="note">
         <span class="note-label">The convention</span>
@@ -1175,9 +1175,9 @@ git rebase upstream/main</code></pre>
         <table>
           <thead><tr><th>Field</th><th>Value</th></tr></thead>
           <tbody>
-            <tr><td>base repository</td><td class="num">ASCorreia/solana-summer-vault</td></tr>
+            <tr><td>base repository</td><td class="num">ASCorreia/solana-fall-vault</td></tr>
             <tr><td>base branch</td><td class="num">main</td></tr>
-            <tr><td>head repository</td><td class="num">&lt;you&gt;/solana-summer-vault</td></tr>
+            <tr><td>head repository</td><td class="num">&lt;you&gt;/solana-fall-vault</td></tr>
             <tr><td>compare branch</td><td class="num">feat/max-withdraw</td></tr>
           </tbody>
         </table>
@@ -1464,11 +1464,11 @@ ones covering under, exactly at, and one lamport over the cap.</code></pre>
           <p>
             You are pushing to <code>upstream</code> instead of <code>origin</code>. Check with
             <code>git remote -v</code>: <code>origin</code> must be
-            <code>&lt;you&gt;/solana-summer-vault</code>. If you cloned the original repo by
+            <code>&lt;you&gt;/solana-fall-vault</code>. If you cloned the original repo by
             mistake, fix it without re-cloning:
           </p>
-<pre><code>git remote set-url origin https://github.com/&lt;you&gt;/solana-summer-vault.git
-git remote add upstream https://github.com/ASCorreia/solana-summer-vault.git</code></pre>
+<pre><code>git remote set-url origin https://github.com/&lt;you&gt;/solana-fall-vault.git
+git remote add upstream https://github.com/ASCorreia/solana-fall-vault.git</code></pre>
         </div>
       </details>
 
@@ -1497,12 +1497,12 @@ git push --force-with-lease</code></pre>
         <summary><span class="tag">Error</span> Rust version or toolchain complaints</summary>
         <div class="d-body">
           <p>
-            <code>rust-toolchain.toml</code> pins <strong>1.89.0</strong>, and rustup installs it
+            <code>rust-toolchain.toml</code> pins <strong>1.98.0</strong>, and rustup installs it
             automatically on first build. Do not override it with <code>+stable</code> — a
             different compiler is a difference between your results and everyone else's.
           </p>
           <p>
-            This project uses <strong>Anchor 1.0.2</strong>. If you have seen 0.31 tutorials,
+            This project uses <strong>Anchor 1.1.2</strong>. If you have seen 0.31 tutorials,
             note that <code>CpiContext::new</code> takes a <code>Pubkey</code> here rather than
             an <code>AccountInfo</code> — the existing code is correct, do not "fix" it.
           </p>
